@@ -539,6 +539,72 @@ func TestAccAWSDynamoDbTable_enablePitr(t *testing.T) {
 	})
 }
 
+func TestAccAWSDynamoDbTable_Pitr_Restore(t *testing.T) {
+	var conf dynamodb.DescribeTableOutput
+	var sourceDbInstance dynamodb.DescribeTableOutput
+	sourceDbResourceName := "aws_dynamodb_table.source"
+	resourceName := "aws_dynamodb_table.target"
+	rName := acctest.RandomWithPrefix("TerraformTestTable-")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckAWSDynamoDbTableDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccAWSDynamoDbConfig_restore(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckInitialAWSDynamoDbTableExists(sourceDbResourceName, &sourceDbInstance),
+					testAccCheckInitialAWSDynamoDbTableExists(sourceDbResourceName, &conf),
+			        resource.TestCheckResourceAttr(resourceName, "hash_key", "TestTableHashKey"),
+            		resource.TestCheckResourceAttr(resourceName, "range_key", "TestTableRangeKey"),
+            		resource.TestCheckResourceAttr(resourceName, "billing_mode", dynamodb.BillingModeProvisioned),
+            		resource.TestCheckResourceAttr(resourceName, "write_capacity", "2"),
+            		resource.TestCheckResourceAttr(resourceName, "read_capacity", "1"),
+            		resource.TestCheckResourceAttr(resourceName, "server_side_encryption.#", "0"),
+            		resource.TestCheckResourceAttr(resourceName, "attribute.#", "4"),
+            		resource.TestCheckResourceAttr(resourceName, "global_secondary_index.#", "1"),
+            		resource.TestCheckResourceAttr(resourceName, "local_secondary_index.#", "1"),
+            		tfawsresource.TestCheckTypeSetElemNestedAttrs(resourceName, "attribute.*", map[string]string{
+            			"name": "TestTableHashKey",
+            			"type": "S",
+            		}),
+            		tfawsresource.TestCheckTypeSetElemNestedAttrs(resourceName, "attribute.*", map[string]string{
+            			"name": "TestTableRangeKey",
+            			"type": "S",
+            		}),
+            		tfawsresource.TestCheckTypeSetElemNestedAttrs(resourceName, "attribute.*", map[string]string{
+            			"name": "TestLSIRangeKey",
+            			"type": "N",
+            		}),
+            		tfawsresource.TestCheckTypeSetElemNestedAttrs(resourceName, "attribute.*", map[string]string{
+            			"name": "TestGSIRangeKey",
+            			"type": "S",
+            		}),
+            		tfawsresource.TestCheckTypeSetElemNestedAttrs(resourceName, "global_secondary_index.*", map[string]string{
+            			"name":            "InitialTestTableGSI",
+            			"hash_key":        "TestTableHashKey",
+            			"range_key":       "TestGSIRangeKey",
+            			"write_capacity":  "1",
+            			"read_capacity":   "1",
+            			"projection_type": "KEYS_ONLY",
+            		}),
+            		tfawsresource.TestCheckTypeSetElemNestedAttrs(resourceName, "local_secondary_index.*", map[string]string{
+            			"name":            "TestTableLSI",
+            			"range_key":       "TestLSIRangeKey",
+            			"projection_type": "ALL",
+            		}),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func TestAccAWSDynamoDbTable_BillingMode_PayPerRequestToProvisioned(t *testing.T) {
 	var conf dynamodb.DescribeTableOutput
 	resourceName := "aws_dynamodb_table.test"
@@ -1450,6 +1516,66 @@ resource "aws_dynamodb_table" "test" {
   }
 }
 `, rName)
+}
+
+func testAccAWSDynamoDbConfig_restore(rName string) string {
+	return fmt.Sprintf(`
+resource "aws_dynamodb_table" "source" {
+  name           = "%s-source"
+  read_capacity  = 1
+  write_capacity = 2
+  hash_key       = "TestTableHashKey"
+  range_key      = "TestTableRangeKey"
+
+  attribute {
+    name = "TestTableHashKey"
+    type = "S"
+  }
+
+  attribute {
+    name = "TestTableRangeKey"
+    type = "S"
+  }
+
+  attribute {
+    name = "TestLSIRangeKey"
+    type = "N"
+  }
+
+  attribute {
+    name = "TestGSIRangeKey"
+    type = "S"
+  }
+
+  local_secondary_index {
+    name            = "TestTableLSI"
+    range_key       = "TestLSIRangeKey"
+    projection_type = "ALL"
+  }
+
+  global_secondary_index {
+    name            = "InitialTestTableGSI"
+    hash_key        = "TestTableHashKey"
+    range_key       = "TestGSIRangeKey"
+    write_capacity  = 1
+    read_capacity   = 1
+    projection_type = "KEYS_ONLY"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+}
+
+resource "aws_dynamodb_table" "target" {
+
+  restore_point_in_time {
+  	source_table_arn = aws_dynamodb_table.source.arn
+  	target_table_name = "%s"
+  	use_latest_restorable_time = true
+  }
+}
+`, rName, rName)
 }
 
 func testAccAWSDynamoDbBilling_PayPerRequest(rName string) string {
