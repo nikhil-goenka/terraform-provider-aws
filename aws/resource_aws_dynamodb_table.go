@@ -766,18 +766,14 @@ func resourceAwsDynamoDbTableRead(d *schema.ResourceData, meta interface{}) erro
 	result, err := conn.DescribeTable(&dynamodb.DescribeTableInput{
 		TableName: aws.String(d.Id()),
 	})
-	print("             right till here      ", d.Id())
 	if err != nil {
 		if isAWSErr(err, dynamodb.ErrCodeResourceNotFoundException, "") {
-			print("             right till here      ")
 			log.Printf("[WARN] Dynamodb Table (%s) not found, error code (404)", d.Id())
 			d.SetId("")
 			return nil
 		}
 		return err
 	}
-	print(result.Table.LocalSecondaryIndexes)
-	print(d)
 	err = flattenAwsDynamoDbTableResource(d, result.Table)
 	if err != nil {
 		return err
@@ -1256,7 +1252,6 @@ func waitForDynamoDbGSIToBeDeleted(tableName string, gsiName string, timeout tim
 }
 
 func waitForDynamoDbTableToBeActive(tableName string, timeout time.Duration, conn *dynamodb.DynamoDB) error {
-	print(tableName)
 	stateConf := &resource.StateChangeConf{
 		Pending: []string{dynamodb.TableStatusCreating, dynamodb.TableStatusUpdating},
 		Target:  []string{dynamodb.TableStatusActive},
