@@ -58,6 +58,10 @@ func resourceAwsSfnStateMachine() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"tracing_config": {
+				Type:     schema.TypeBool,
+				Optional: true,
+			},
 		},
 	}
 }
@@ -71,6 +75,12 @@ func resourceAwsSfnStateMachineCreate(d *schema.ResourceData, meta interface{}) 
 		Name:       aws.String(d.Get("name").(string)),
 		RoleArn:    aws.String(d.Get("role_arn").(string)),
 		Tags:       keyvaluetags.New(d.Get("tags").(map[string]interface{})).IgnoreAws().SfnTags(),
+	}
+
+	if v, ok := d.GetOk("tracing_config"); ok {
+		params.TracingConfiguration = &sfn.TracingConfiguration{
+			Enabled: aws.Bool(v.(bool)),
+		}
 	}
 
 	var stateMachine *sfn.CreateStateMachineOutput
@@ -134,6 +144,10 @@ func resourceAwsSfnStateMachineRead(d *schema.ResourceData, meta interface{}) er
 	d.Set("role_arn", sm.RoleArn)
 	d.Set("status", sm.Status)
 
+	if err := d.Set("tracing_config", sm.TracingConfiguration.Enabled); err != nil {
+		return err
+	}
+
 	if err := d.Set("creation_date", sm.CreationDate.Format(time.RFC3339)); err != nil {
 		log.Printf("[DEBUG] Error setting creation_date: %s", err)
 	}
@@ -154,11 +168,15 @@ func resourceAwsSfnStateMachineRead(d *schema.ResourceData, meta interface{}) er
 func resourceAwsSfnStateMachineUpdate(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*AWSClient).sfnconn
 
-	if d.HasChanges("definition", "role_arn") {
+	if d.HasChanges("definition", "role_arn", "tracing_config") {
 		params := &sfn.UpdateStateMachineInput{
 			StateMachineArn: aws.String(d.Id()),
 			Definition:      aws.String(d.Get("definition").(string)),
 			RoleArn:         aws.String(d.Get("role_arn").(string)),
+		}
+
+		params.TracingConfiguration = &sfn.TracingConfiguration{
+			Enabled: aws.Bool(d.Get("tracing_config").(bool)),
 		}
 
 		_, err := conn.UpdateStateMachine(params)

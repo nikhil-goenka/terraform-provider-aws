@@ -101,6 +101,39 @@ func TestAccAWSSfnStateMachine_tags(t *testing.T) {
 	})
 }
 
+func TestAccAWSSfnStateMachine_Tracing_Config(t *testing.T) {
+	var sm sfn.DescribeStateMachineOutput
+	resourceName := "aws_sfn_state_machine.test"
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckAWSSfnStateMachineDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccAWSSfnStateMachineConfigTracingConfigEnable(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSSfnExists(resourceName, &sm),
+					resource.TestCheckResourceAttr(resourceName, "tracing_config", "true"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+			{
+				Config: testAccAWSSfnStateMachineConfigTracingConfigDisable(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSSfnExists(resourceName, &sm),
+					resource.TestCheckResourceAttr(resourceName, "tracing_config", "false"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccAWSSfnStateMachine_disappears(t *testing.T) {
 	var sm sfn.DescribeStateMachineOutput
 	resourceName := "aws_sfn_state_machine.test"
@@ -358,4 +391,72 @@ EOF
   }
 }
 `, rName, tag1Key, tag1Value, tag2Key, tag2Value)
+}
+
+func testAccAWSSfnStateMachineConfigTracingConfigEnable(rName string) string {
+	return testAccAWSSfnStateMachineConfigBase(rName) + fmt.Sprintf(`
+resource "aws_sfn_state_machine" "test" {
+  name     = %[1]q
+  role_arn = aws_iam_role.iam_for_sfn.arn
+  tracing_config = true
+  definition = <<EOF
+{
+  "Comment": "A Hello World example of the Amazon States Language using an AWS Lambda Function",
+  "StartAt": "HelloWorld",
+  "States": {
+    "HelloWorld": {
+      "Type": "Task",
+      "Resource": "${aws_lambda_function.test.arn}",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 5,
+          "BackoffRate": 8
+        }
+      ],
+      "End": true
+    }
+  }
+}
+EOF
+
+}
+`, rName)
+}
+
+func testAccAWSSfnStateMachineConfigTracingConfigDisable(rName string) string {
+	return testAccAWSSfnStateMachineConfigBase(rName) + fmt.Sprintf(`
+resource "aws_sfn_state_machine" "test" {
+  name     = %[1]q
+  role_arn = aws_iam_role.iam_for_sfn.arn
+
+  definition = <<EOF
+{
+  "Comment": "A Hello World example of the Amazon States Language using an AWS Lambda Function",
+  "StartAt": "HelloWorld",
+  "States": {
+    "HelloWorld": {
+      "Type": "Task",
+      "Resource": "${aws_lambda_function.test.arn}",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 5,
+          "BackoffRate": 8
+        }
+      ],
+      "End": true
+    }
+  }
+}
+EOF
+
+}
+`, rName)
 }
