@@ -42,6 +42,7 @@ The following arguments are supported:
 * `name` - (Required) The name of the state machine.
 * `definition` - (Required) The Amazon States Language definition of the state machine.
 * `role_arn` - (Required) The Amazon Resource Name (ARN) of the IAM role to use for this state machine.
+* `tracing_config` - (Optional) Set `true` to enable AWS X-Ray tracing.
 * `tags` - (Optional) Key-value map of resource tags
 
 ## Attributes Reference
