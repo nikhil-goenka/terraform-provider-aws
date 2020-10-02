@@ -399,6 +399,7 @@ resource "aws_sfn_state_machine" "test" {
   name     = %[1]q
   role_arn = aws_iam_role.iam_for_sfn.arn
   tracing_config = true
+
   definition = <<EOF
 {
   "Comment": "A Hello World example of the Amazon States Language using an AWS Lambda Function",
