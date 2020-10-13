@@ -54,6 +54,7 @@ func resourceAwsSfnStateMachine() *schema.Resource {
 				Computed: true,
 			},
 			"tags": tagsSchema(),
+
 			"arn": {
 				Type:     schema.TypeString,
 				Computed: true,
