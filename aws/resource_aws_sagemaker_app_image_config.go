@@ -146,7 +146,7 @@ func resourceAwsSagemakerAppImageConfigRead(d *schema.ResourceData, meta interfa
 		return fmt.Errorf("error setting kernel_gateway_image_config: %w", err)
 	}
 
-	tags, err := keyvaluetags.SagemakerListTags(conn, d.Id())
+	tags, err := keyvaluetags.SagemakerListTags(conn, d.Get("arn").(string))
 	if err != nil {
 		return fmt.Errorf("error listing tags for Organizations policy (%s): %w", d.Id(), err)
 	}
@@ -181,7 +181,7 @@ func resourceAwsSagemakerAppImageConfigUpdate(d *schema.ResourceData, meta inter
 
 	if d.HasChange("tags") {
 		o, n := d.GetChange("tags")
-		if err := keyvaluetags.SagemakerUpdateTags(conn, d.Id(), o, n); err != nil {
+		if err := keyvaluetags.SagemakerUpdateTags(conn, d.Get("arn").(string), o, n); err != nil {
 			return fmt.Errorf("error updating tags for Organizations policy (%s): %w", d.Id(), err)
 		}
 	}
