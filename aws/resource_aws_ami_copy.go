@@ -177,6 +177,11 @@ func resourceAwsAmiCopy() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
+			"destination_outpost_arn": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validateArn,
+			},
 			"sriov_net_support": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -245,6 +250,10 @@ func resourceAwsAmiCopyCreate(d *schema.ResourceData, meta interface{}) error {
 
 	if v, ok := d.GetOk("kms_key_id"); ok {
 		req.KmsKeyId = aws.String(v.(string))
+	}
+
+	if v, ok := d.GetOk("destination_outpost_arn"); ok {
+		req.DestinationOutpostArn = aws.String(v.(string))
 	}
 
 	res, err := client.CopyImage(req)
