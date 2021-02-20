@@ -210,6 +210,58 @@ func TestAccAWSSagemakerAppImageConfig_disappears(t *testing.T) {
 	})
 }
 
+func TestAccAWSSagemakerAppImageConfig_tags(t *testing.T) {
+	var p1, p2, p3, p4 sagemaker.DescribeAppImageConfigOutput
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "aws_sagemaker_app_image_config.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckAWSSagemakerAppImageConfigDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccAwsSagemakerAppImageConfig_TagA(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSSagemakerAppImageConfigExists(resourceName, &p1),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "2"),
+					resource.TestCheckResourceAttr(resourceName, "tags.TerraformProviderAwsTest", "true"),
+					resource.TestCheckResourceAttr(resourceName, "tags.Alpha", "1"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+			{
+				Config: testAccAwsSagemakerAppImageConfig_TagB(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSSagemakerAppImageConfigExists(resourceName, &p2),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "2"),
+					resource.TestCheckResourceAttr(resourceName, "tags.TerraformProviderAwsTest", "true"),
+					resource.TestCheckResourceAttr(resourceName, "tags.Beta", "1"),
+				),
+			},
+			{
+				Config: testAccAwsSagemakerAppImageConfig_TagC(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSSagemakerAppImageConfigExists(resourceName, &p3),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "1"),
+					resource.TestCheckResourceAttr(resourceName, "tags.TerraformProviderAwsTest", "true"),
+				),
+			},
+			{
+				Config: testAccAwsSagemakerAppImageConfig_NoTag(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSSagemakerAppImageConfigExists(resourceName, &p4),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckAWSSagemakerAppImageConfigDestroy(s *terraform.State) error {
 	conn := testAccProvider.Meta().(*AWSClient).sagemakerconn
 
@@ -323,6 +375,52 @@ resource "aws_sagemaker_app_image_config" "test" {
       mount_path  = "/test"
     }
   }
+}
+`, rName)
+}
+
+func testAccAwsSagemakerAppImageConfig_TagA(rName string) string {
+	return fmt.Sprintf(`
+resource "aws_sagemaker_app_image_config" "test" {
+  app_image_config_name = %[1]q
+
+  tags = {
+    TerraformProviderAwsTest = true
+    Alpha                     = 1
+  }
+}
+`, rName)
+}
+
+func testAccAwsSagemakerAppImageConfig_TagB(rName string) string {
+	return fmt.Sprintf(`
+resource "aws_sagemaker_app_image_config" "test" {
+  app_image_config_name = %[1]q
+
+  tags = {
+    TerraformProviderAwsTest = true
+    Beta                     = 1
+  }
+}
+`, rName)
+}
+
+func testAccAwsSagemakerAppImageConfig_TagC(rName string) string {
+	return fmt.Sprintf(`
+resource "aws_sagemaker_app_image_config" "test" {
+  app_image_config_name = %[1]q
+
+  tags = {
+    TerraformProviderAwsTest = true
+  }
+}
+`, rName)
+}
+
+func testAccAwsSagemakerAppImageConfig_NoTag(rName string) string {
+	return fmt.Sprintf(`
+resource "aws_sagemaker_app_image_config" "test" {
+  app_image_config_name = %[1]q
 }
 `, rName)
 }

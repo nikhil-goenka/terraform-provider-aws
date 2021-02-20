@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sagemaker"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/terraform-providers/terraform-provider-aws/aws/internal/keyvaluetags"
 	"github.com/terraform-providers/terraform-provider-aws/aws/internal/service/sagemaker/finder"
 )
 
@@ -94,6 +95,7 @@ func resourceAwsSagemakerAppImageConfig() *schema.Resource {
 					},
 				},
 			},
+			"tags": tagsSchema(),
 		},
 	}
 }
@@ -104,6 +106,7 @@ func resourceAwsSagemakerAppImageConfigCreate(d *schema.ResourceData, meta inter
 	name := d.Get("app_image_config_name").(string)
 	input := &sagemaker.CreateAppImageConfigInput{
 		AppImageConfigName: aws.String(name),
+		Tags:               keyvaluetags.New(d.Get("tags").(map[string]interface{})).IgnoreAws().SagemakerTags(),
 	}
 
 	if v, ok := d.GetOk("kernel_gateway_image_config"); ok && len(v.([]interface{})) > 0 {
@@ -122,6 +125,7 @@ func resourceAwsSagemakerAppImageConfigCreate(d *schema.ResourceData, meta inter
 
 func resourceAwsSagemakerAppImageConfigRead(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*AWSClient).sagemakerconn
+	ignoreTagsConfig := meta.(*AWSClient).IgnoreTagsConfig
 
 	image, err := finder.AppImageConfigByName(conn, d.Id())
 	if err != nil {
@@ -140,6 +144,15 @@ func resourceAwsSagemakerAppImageConfigRead(d *schema.ResourceData, meta interfa
 
 	if err := d.Set("kernel_gateway_image_config", flattenSagemakerAppImageConfigKernelGatewayImageConfig(image.KernelGatewayImageConfig)); err != nil {
 		return fmt.Errorf("error setting kernel_gateway_image_config: %w", err)
+	}
+
+	tags, err := keyvaluetags.SagemakerListTags(conn, d.Id())
+	if err != nil {
+		return fmt.Errorf("error listing tags for Organizations policy (%s): %w", d.Id(), err)
+	}
+
+	if err := d.Set("tags", tags.IgnoreAws().IgnoreConfig(ignoreTagsConfig).Map()); err != nil {
+		return fmt.Errorf("error setting tags for Organizations policy (%s): %w", d.Id(), err)
 	}
 
 	return nil
@@ -164,6 +177,13 @@ func resourceAwsSagemakerAppImageConfigUpdate(d *schema.ResourceData, meta inter
 			return fmt.Errorf("error updating SageMaker App Image Config: %w", err)
 		}
 
+	}
+
+	if d.HasChange("tags") {
+		o, n := d.GetChange("tags")
+		if err := keyvaluetags.SagemakerUpdateTags(conn, d.Id(), o, n); err != nil {
+			return fmt.Errorf("error updating tags for Organizations policy (%s): %w", d.Id(), err)
+		}
 	}
 
 	return resourceAwsSagemakerAppImageConfigRead(d, meta)
