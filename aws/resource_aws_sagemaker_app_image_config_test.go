@@ -386,7 +386,7 @@ resource "aws_sagemaker_app_image_config" "test" {
 
   tags = {
     TerraformProviderAwsTest = true
-    Alpha                     = 1
+    Alpha                    = 1
   }
 }
 `, rName)
