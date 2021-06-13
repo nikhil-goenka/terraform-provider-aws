@@ -440,6 +440,32 @@ func TestAccAwsDmsEndpoint_MongoDb(t *testing.T) {
 	})
 }
 
+func TestAccAwsDmsEndpoint_MongoDb_SecretId(t *testing.T) {
+	resourceName := "aws_dms_endpoint.dms_endpoint"
+	randId := acctest.RandString(8) + "-mongodb"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, dms.EndpointsID),
+		Providers:    testAccProviders,
+		CheckDestroy: dmsEndpointDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: dmsEndpointMongoDbConfigSecretId(randId),
+				Check: resource.ComposeTestCheckFunc(
+					checkDmsEndpointExists(resourceName),
+					resource.TestCheckResourceAttrSet(resourceName, "endpoint_arn"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 // TestAccAwsDmsEndpoint_MongoDb_Update validates engine-specific
 // configured fields and extra_connection_attributes now set in the resource
 // per https://github.com/hashicorp/terraform-provider-aws/issues/8009
@@ -586,7 +612,7 @@ func TestAccAwsDmsEndpoint_OracleDb_Update(t *testing.T) {
 
 func TestAccAwsDmsEndpoint_Postgres(t *testing.T) {
 	resourceName := "aws_dms_endpoint.dms_endpoint"
-	randId := acctest.RandString(8) + "-oracledb"
+	randId := acctest.RandString(8) + "-postgres"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -613,7 +639,7 @@ func TestAccAwsDmsEndpoint_Postgres(t *testing.T) {
 
 func TestAccAwsDmsEndpoint_Postgres_SecretId(t *testing.T) {
 	resourceName := "aws_dms_endpoint.dms_endpoint"
-	randId := acctest.RandString(8) + "-oracledb"
+	randId := acctest.RandString(8) + "-postgres"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -642,7 +668,7 @@ func TestAccAwsDmsEndpoint_Postgres_SecretId(t *testing.T) {
 // per https://github.com/hashicorp/terraform-provider-aws/issues/8009
 func TestAccAwsDmsEndpoint_Postgres_Update(t *testing.T) {
 	resourceName := "aws_dms_endpoint.dms_endpoint"
-	randId := acctest.RandString(8) + "-oracledb"
+	randId := acctest.RandString(8) + "-postgres"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -675,6 +701,32 @@ func TestAccAwsDmsEndpoint_Postgres_Update(t *testing.T) {
 				ImportState:             true,
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"password"},
+			},
+		},
+	})
+}
+
+func TestAccAwsDmsEndpoint_DocDB_SecretId(t *testing.T) {
+	resourceName := "aws_dms_endpoint.dms_endpoint"
+	randId := acctest.RandString(8) + "-docdb"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, dms.EndpointsID),
+		Providers:    testAccProviders,
+		CheckDestroy: dmsEndpointDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: dmsEndpointDocDBConfigSecretId(randId),
+				Check: resource.ComposeTestCheckFunc(
+					checkDmsEndpointExists(resourceName),
+					resource.TestCheckResourceAttrSet(resourceName, "endpoint_arn"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -1591,6 +1643,86 @@ resource "aws_dms_endpoint" "dms_endpoint" {
 `, randId)
 }
 
+func dmsEndpointMongoDbConfigSecretId(randId string) string {
+	return fmt.Sprintf(`
+data "aws_kms_alias" "dms" {
+  name = "alias/aws/dms"
+}
+
+data "aws_region" "current" {
+}
+
+resource "aws_secretsmanager_secret" "test" {
+  name                    = %[1]q
+  recovery_window_in_days = 0
+}
+
+resource "aws_iam_role" "test" {
+  name = %[1]q
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "dms.${data.aws_region.current.name}.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy" "test" {
+  name = %[1]q
+  role = aws_iam_role.test.id
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+        "Action": "secretsmanager:*",
+        "Effect": "Allow",
+        "Resource": "*"
+
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_dms_endpoint" "dms_endpoint" {
+  endpoint_id                     = "tf-test-dms-endpoint-%[1]s"
+  endpoint_type                   = "source"
+  engine_name                     = "mongodb"
+  secrets_manager_access_role_arn = aws_iam_role.test.arn
+  secrets_manager_arn             = aws_secretsmanager_secret.test.id
+
+  database_name               = "tftest"
+  ssl_mode                    = "none"
+  extra_connection_attributes = ""
+
+	mongodb_settings {
+    auth_mechanism      = "scram-sha-1"
+    nesting_level       = "one"
+    extract_doc_id      = "true"
+    docs_to_investigate = "1001"
+  }
+
+  tags = {
+    Name   = "tf-test-dms-endpoint-%[1]s"
+    Update = "to-update"
+    Remove = "to-remove"
+  }
+}
+`, randId)
+}
+
 func dmsEndpointOracleDbConfig(randId string) string {
 	return fmt.Sprintf(`
 
@@ -1725,6 +1857,12 @@ resource "aws_dms_endpoint" "dms_endpoint" {
   server_name                 = "tftest"
   ssl_mode                    = "none"
 
+  docdb_settings {
+    nesting_level       = "one"
+    extract_doc_id      = "true"
+    docs_to_investigate = "1001"
+  }
+
   tags = {
     Name   = "tf-test-dms-endpoint-%[1]s"
     Update = "to-update"
@@ -1749,6 +1887,12 @@ resource "aws_dms_endpoint" "dms_endpoint" {
   server_name                 = "tftestupdate"
   ssl_mode                    = "none"
 
+  docdb_settings {
+    nesting_level       = "one"
+    extract_doc_id      = "true"
+    docs_to_investigate = "1001"
+  }
+
   tags = {
     Name   = "tf-test-dms-endpoint-%[1]s"
     Update = "updated"
@@ -1756,6 +1900,85 @@ resource "aws_dms_endpoint" "dms_endpoint" {
   }
 
   username = "tftestupdate"
+}
+`, randId)
+}
+
+func dmsEndpointDocDBConfigSecretId(randId string) string {
+	return fmt.Sprintf(`
+data "aws_kms_alias" "dms" {
+  name = "alias/aws/dms"
+}
+
+data "aws_region" "current" {
+}
+
+resource "aws_secretsmanager_secret" "test" {
+  name                    = %[1]q
+  recovery_window_in_days = 0
+}
+
+resource "aws_iam_role" "test" {
+  name = %[1]q
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "dms.${data.aws_region.current.name}.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy" "test" {
+  name = %[1]q
+  role = aws_iam_role.test.id
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+        "Action": "secretsmanager:*",
+        "Effect": "Allow",
+        "Resource": "*"
+
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_dms_endpoint" "dms_endpoint" {
+  endpoint_id                     = "tf-test-dms-endpoint-%[1]s"
+  endpoint_type                   = "source"
+  engine_name                     = "docdb"
+  secrets_manager_access_role_arn = aws_iam_role.test.arn
+  secrets_manager_arn             = aws_secretsmanager_secret.test.id
+
+  database_name               = "tftest"
+  ssl_mode                    = "none"
+  extra_connection_attributes = ""
+
+  docdb_settings {
+    nesting_level       = "one"
+    extract_doc_id      = "true"
+    docs_to_investigate = "1001"
+  }
+
+  tags = {
+    Name   = "tf-test-dms-endpoint-%[1]s"
+    Update = "to-update"
+    Remove = "to-remove"
+  }
 }
 `, randId)
 }

@@ -54,17 +54,18 @@ The following arguments are supported:
     - Must not contain two consecutive hyphens
 
 * `endpoint_type` - (Required) The type of endpoint. Can be one of `source | target`.
-* `engine_name` - (Required) The type of engine for the endpoint. Can be one of `aurora | aurora-postgresql| azuredb | db2 | docdb | dynamodb | elasticsearch | kafka | kinesis | mariadb | mongodb | mysql | oracle | postgres | redshift | s3 | sqlserver | sybase`.
+* `engine_name` - (Required) The type of engine for the endpoint. Can be one of `aurora | aurora-postgresql | azuredb | db2 | docdb | dynamodb | elasticsearch | kafka | kinesis | mariadb | mongodb | mysql | oracle | postgres | redshift | s3 | sqlserver | sybase`.
 * `extra_connection_attributes` - (Optional) Additional attributes associated with the connection. For available attributes see [Using Extra Connection Attributes with AWS Database Migration Service](http://docs.aws.amazon.com/dms/latest/userguide/CHAP_Introduction.ConnectionAttributes.html).
 * `kafka_settings` - (Optional) Configuration block with Kafka settings. Detailed below.
 * `kinesis_settings` - (Optional) Configuration block with Kinesis settings. Detailed below.
 * `kms_key_arn` - (Required when `engine_name` is `mongodb`, optional otherwise) The Amazon Resource Name (ARN) for the KMS key that will be used to encrypt the connection parameters. If you do not specify a value for `kms_key_arn`, then AWS DMS will use your default encryption key. AWS KMS creates the default encryption key for your AWS account. Your AWS account has a different default encryption key for each AWS region.
 * `mongodb_settings` - (Optional) Configuration block with MongoDB settings. Detailed below.
+* `docdb_settings` - (Optional) Configuration block with DocDB settings. Detailed below.
 * `password` - (Optional) The password to be used to login to the endpoint database.
 * `port` - (Optional) The port used by the endpoint database.
 * `s3_settings` - (Optional) Configuration block with S3 settings. Detailed below.
 * `secrets_manager_access_role_arn` - (Optional) Amazon Resource Name (ARN) of the IAM role that specifies AWS DMS as the trusted entity and has the required permissions to access the value in SecretsManagerSecret.
-* `secrets_manager_arn` - (Optional) The full ARN, partial ARN, or friendly name of the SecretsManagerSecret that contains the endpoint connection details. Supported only for `engine_name` as `oracle` and `postgres`.
+* `secrets_manager_arn` - (Optional) The full ARN, partial ARN, or friendly name of the SecretsManagerSecret that contains the endpoint connection details. Supported for engines `aurora | aurora-postgresql | azuredb | docdb | mariadb | mongodb | mysql | oracle | postgres | redshift | sqlserver | sybase`.
 * `server_name` - (Optional) The host name of the server.
 * `service_access_role` - (Optional) The Amazon Resource Name (ARN) used by the service access IAM role for dynamodb endpoints.
 * `ssl_mode` - (Optional, Default: none) The SSL mode to use for the connection. Can be one of `none | require | verify-ca | verify-full`
@@ -110,6 +111,16 @@ The `mongodb_settings` configuration block supports the following arguments:
 * `auth_mechanism` - (Optional) Authentication mechanism to access the MongoDB source endpoint. Defaults to `default`.
 * `auth_source` - (Optional) Authentication database name. Not used when `auth_type` is `no`. Defaults to `admin`.
 * `auth_type` - (Optional) Authentication type to access the MongoDB source endpoint. Defaults to `password`.
+* `docs_to_investigate` - (Optional) Number of documents to preview to determine the document organization. Use this setting when `nesting_level` is set to `one`. Defaults to `1000`.
+* `extract_doc_id` - (Optional) Document ID. Use this setting when `nesting_level` is set to `none`. Defaults to `false`.
+* `nesting_level` - (Optional) Specifies either document or table mode. Defaults to `none`. Valid values are `one` (table mode) and `none` (document mode).
+
+### docdb_settings Arguments
+
+-> Additional information can be found in the [Using Amazon DocumentDB (with MongoDB compatibility) as a source for AWS DMS](https://docs.aws.amazon.com/dms/latest/userguide/CHAP_Source.DocumentDB.html).
+
+The `docdb_settings` configuration block supports the following arguments:
+
 * `docs_to_investigate` - (Optional) Number of documents to preview to determine the document organization. Use this setting when `nesting_level` is set to `one`. Defaults to `1000`.
 * `extract_doc_id` - (Optional) Document ID. Use this setting when `nesting_level` is set to `none`. Defaults to `false`.
 * `nesting_level` - (Optional) Specifies either document or table mode. Defaults to `none`. Valid values are `one` (table mode) and `none` (document mode).
