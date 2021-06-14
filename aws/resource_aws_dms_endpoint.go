@@ -245,6 +245,36 @@ func resourceAwsDmsEndpoint() *schema.Resource {
 					},
 				},
 			},
+			"docdb_settings": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					if old == "1" && new == "0" {
+						return true
+					}
+					return false
+				},
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"nesting_level": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Default:  dms.NestingLevelValueNone,
+						},
+						"extract_doc_id": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+						},
+						"docs_to_investigate": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Default:  1000,
+						},
+					},
+				},
+			},
 			"password": {
 				Type:      schema.TypeString,
 				Optional:  true,
@@ -382,28 +412,77 @@ func resourceAwsDmsEndpointCreate(d *schema.ResourceData, meta interface{}) erro
 			StreamArn:            aws.String(d.Get("kinesis_settings.0.stream_arn").(string)),
 		}
 	case "mongodb":
-		request.MongoDbSettings = &dms.MongoDbSettings{
-			Username:     aws.String(d.Get("username").(string)),
-			Password:     aws.String(d.Get("password").(string)),
-			ServerName:   aws.String(d.Get("server_name").(string)),
-			Port:         aws.Int64(int64(d.Get("port").(int))),
-			DatabaseName: aws.String(d.Get("database_name").(string)),
-			KmsKeyId:     aws.String(d.Get("kms_key_arn").(string)),
+		if _, ok := d.GetOk("secrets_manager_arn"); ok {
+			request.MongoDbSettings = &dms.MongoDbSettings{
+				SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+				SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				DatabaseName:                aws.String(d.Get("database_name").(string)),
+				KmsKeyId:                    aws.String(d.Get("kms_key_arn").(string)),
 
-			AuthType:          aws.String(d.Get("mongodb_settings.0.auth_type").(string)),
-			AuthMechanism:     aws.String(d.Get("mongodb_settings.0.auth_mechanism").(string)),
-			NestingLevel:      aws.String(d.Get("mongodb_settings.0.nesting_level").(string)),
-			ExtractDocId:      aws.String(d.Get("mongodb_settings.0.extract_doc_id").(string)),
-			DocsToInvestigate: aws.String(d.Get("mongodb_settings.0.docs_to_investigate").(string)),
-			AuthSource:        aws.String(d.Get("mongodb_settings.0.auth_source").(string)),
+				AuthType:          aws.String(d.Get("mongodb_settings.0.auth_type").(string)),
+				AuthMechanism:     aws.String(d.Get("mongodb_settings.0.auth_mechanism").(string)),
+				NestingLevel:      aws.String(d.Get("mongodb_settings.0.nesting_level").(string)),
+				ExtractDocId:      aws.String(d.Get("mongodb_settings.0.extract_doc_id").(string)),
+				DocsToInvestigate: aws.String(d.Get("mongodb_settings.0.docs_to_investigate").(string)),
+				AuthSource:        aws.String(d.Get("mongodb_settings.0.auth_source").(string)),
+			}
+		} else {
+			request.MongoDbSettings = &dms.MongoDbSettings{
+				Username:     aws.String(d.Get("username").(string)),
+				Password:     aws.String(d.Get("password").(string)),
+				ServerName:   aws.String(d.Get("server_name").(string)),
+				Port:         aws.Int64(int64(d.Get("port").(int))),
+				DatabaseName: aws.String(d.Get("database_name").(string)),
+				KmsKeyId:     aws.String(d.Get("kms_key_arn").(string)),
+
+				AuthType:          aws.String(d.Get("mongodb_settings.0.auth_type").(string)),
+				AuthMechanism:     aws.String(d.Get("mongodb_settings.0.auth_mechanism").(string)),
+				NestingLevel:      aws.String(d.Get("mongodb_settings.0.nesting_level").(string)),
+				ExtractDocId:      aws.String(d.Get("mongodb_settings.0.extract_doc_id").(string)),
+				DocsToInvestigate: aws.String(d.Get("mongodb_settings.0.docs_to_investigate").(string)),
+				AuthSource:        aws.String(d.Get("mongodb_settings.0.auth_source").(string)),
+			}
+
+			// Set connection info in top-level namespace as well
+			request.Username = aws.String(d.Get("username").(string))
+			request.Password = aws.String(d.Get("password").(string))
+			request.ServerName = aws.String(d.Get("server_name").(string))
+			request.Port = aws.Int64(int64(d.Get("port").(int)))
+			request.DatabaseName = aws.String(d.Get("database_name").(string))
 		}
+	case "docdb":
+		if _, ok := d.GetOk("secrets_manager_arn"); ok {
+			request.DocDbSettings = &dms.DocDbSettings{
+				SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+				SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				DatabaseName:                aws.String(d.Get("database_name").(string)),
+				KmsKeyId:                    aws.String(d.Get("kms_key_arn").(string)),
 
-		// Set connection info in top-level namespace as well
-		request.Username = aws.String(d.Get("username").(string))
-		request.Password = aws.String(d.Get("password").(string))
-		request.ServerName = aws.String(d.Get("server_name").(string))
-		request.Port = aws.Int64(int64(d.Get("port").(int)))
-		request.DatabaseName = aws.String(d.Get("database_name").(string))
+				NestingLevel:      aws.String(d.Get("docdb_settings.0.nesting_level").(string)),
+				ExtractDocId:      aws.Bool(d.Get("docdb_settings.0.extract_doc_id").(bool)),
+				DocsToInvestigate: aws.Int64(int64(d.Get("docdb_settings.0.docs_to_investigate").(int))),
+			}
+		} else {
+			request.DocDbSettings = &dms.DocDbSettings{
+				Username:     aws.String(d.Get("username").(string)),
+				Password:     aws.String(d.Get("password").(string)),
+				ServerName:   aws.String(d.Get("server_name").(string)),
+				Port:         aws.Int64(int64(d.Get("port").(int))),
+				DatabaseName: aws.String(d.Get("database_name").(string)),
+				KmsKeyId:     aws.String(d.Get("kms_key_arn").(string)),
+
+				NestingLevel:      aws.String(d.Get("docdb_settings.0.nesting_level").(string)),
+				ExtractDocId:      aws.Bool(d.Get("docdb_settings.0.extract_doc_id").(bool)),
+				DocsToInvestigate: aws.Int64(int64(d.Get("docdb_settings.0.docs_to_investigate").(int))),
+			}
+
+			// Set connection info in top-level namespace as well
+			request.Username = aws.String(d.Get("username").(string))
+			request.Password = aws.String(d.Get("password").(string))
+			request.ServerName = aws.String(d.Get("server_name").(string))
+			request.Port = aws.Int64(int64(d.Get("port").(int)))
+			request.DatabaseName = aws.String(d.Get("database_name").(string))
+		}
 	case "oracle":
 		if _, ok := d.GetOk("secrets_manager_arn"); ok {
 			request.OracleSettings = &dms.OracleSettings{
@@ -428,6 +507,8 @@ func resourceAwsDmsEndpointCreate(d *schema.ResourceData, meta interface{}) erro
 			request.DatabaseName = aws.String(d.Get("database_name").(string))
 		}
 	case "postgres":
+		fallthrough
+	case "aurora-postgresql":
 		if _, ok := d.GetOk("secrets_manager_arn"); ok {
 			request.PostgreSQLSettings = &dms.PostgreSQLSettings{
 				SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
@@ -436,6 +517,104 @@ func resourceAwsDmsEndpointCreate(d *schema.ResourceData, meta interface{}) erro
 			}
 		} else {
 			request.PostgreSQLSettings = &dms.PostgreSQLSettings{
+				Username:     aws.String(d.Get("username").(string)),
+				Password:     aws.String(d.Get("password").(string)),
+				ServerName:   aws.String(d.Get("server_name").(string)),
+				Port:         aws.Int64(int64(d.Get("port").(int))),
+				DatabaseName: aws.String(d.Get("database_name").(string)),
+			}
+
+			// Set connection info in top-level namespace as well
+			request.Username = aws.String(d.Get("username").(string))
+			request.Password = aws.String(d.Get("password").(string))
+			request.ServerName = aws.String(d.Get("server_name").(string))
+			request.Port = aws.Int64(int64(d.Get("port").(int)))
+			request.DatabaseName = aws.String(d.Get("database_name").(string))
+		}
+	case "redshift":
+		if _, ok := d.GetOk("secrets_manager_arn"); ok {
+			request.RedshiftSettings = &dms.RedshiftSettings{
+				SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+				SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				DatabaseName:                aws.String(d.Get("database_name").(string)),
+			}
+		} else {
+			request.RedshiftSettings = &dms.RedshiftSettings{
+				Username:     aws.String(d.Get("username").(string)),
+				Password:     aws.String(d.Get("password").(string)),
+				ServerName:   aws.String(d.Get("server_name").(string)),
+				Port:         aws.Int64(int64(d.Get("port").(int))),
+				DatabaseName: aws.String(d.Get("database_name").(string)),
+			}
+
+			// Set connection info in top-level namespace as well
+			request.Username = aws.String(d.Get("username").(string))
+			request.Password = aws.String(d.Get("password").(string))
+			request.ServerName = aws.String(d.Get("server_name").(string))
+			request.Port = aws.Int64(int64(d.Get("port").(int)))
+			request.DatabaseName = aws.String(d.Get("database_name").(string))
+		}
+	case "mysql":
+		fallthrough
+	case "mariadb":
+		fallthrough
+	case "aurora":
+		if _, ok := d.GetOk("secrets_manager_arn"); ok {
+			request.MySQLSettings = &dms.MySQLSettings{
+				SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+				SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				DatabaseName:                aws.String(d.Get("database_name").(string)),
+			}
+		} else {
+			request.MySQLSettings = &dms.MySQLSettings{
+				Username:     aws.String(d.Get("username").(string)),
+				Password:     aws.String(d.Get("password").(string)),
+				ServerName:   aws.String(d.Get("server_name").(string)),
+				Port:         aws.Int64(int64(d.Get("port").(int))),
+				DatabaseName: aws.String(d.Get("database_name").(string)),
+			}
+
+			// Set connection info in top-level namespace as well
+			request.Username = aws.String(d.Get("username").(string))
+			request.Password = aws.String(d.Get("password").(string))
+			request.ServerName = aws.String(d.Get("server_name").(string))
+			request.Port = aws.Int64(int64(d.Get("port").(int)))
+			request.DatabaseName = aws.String(d.Get("database_name").(string))
+		}
+	case "sqlserver":
+		fallthrough
+	case "azuredb":
+		if _, ok := d.GetOk("secrets_manager_arn"); ok {
+			request.MicrosoftSQLServerSettings = &dms.MicrosoftSQLServerSettings{
+				SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+				SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				DatabaseName:                aws.String(d.Get("database_name").(string)),
+			}
+		} else {
+			request.MicrosoftSQLServerSettings = &dms.MicrosoftSQLServerSettings{
+				Username:     aws.String(d.Get("username").(string)),
+				Password:     aws.String(d.Get("password").(string)),
+				ServerName:   aws.String(d.Get("server_name").(string)),
+				Port:         aws.Int64(int64(d.Get("port").(int))),
+				DatabaseName: aws.String(d.Get("database_name").(string)),
+			}
+
+			// Set connection info in top-level namespace as well
+			request.Username = aws.String(d.Get("username").(string))
+			request.Password = aws.String(d.Get("password").(string))
+			request.ServerName = aws.String(d.Get("server_name").(string))
+			request.Port = aws.Int64(int64(d.Get("port").(int)))
+			request.DatabaseName = aws.String(d.Get("database_name").(string))
+		}
+	case "sybase":
+		if _, ok := d.GetOk("secrets_manager_arn"); ok {
+			request.SybaseSettings = &dms.SybaseSettings{
+				SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+				SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				DatabaseName:                aws.String(d.Get("database_name").(string)),
+			}
+		} else {
+			request.SybaseSettings = &dms.SybaseSettings{
 				Username:     aws.String(d.Get("username").(string)),
 				Password:     aws.String(d.Get("password").(string)),
 				ServerName:   aws.String(d.Get("server_name").(string)),
@@ -661,20 +840,36 @@ func resourceAwsDmsEndpointUpdate(d *schema.ResourceData, meta interface{}) erro
 			"username", "password", "server_name", "port", "database_name", "mongodb_settings.0.auth_type",
 			"mongodb_settings.0.auth_mechanism", "mongodb_settings.0.nesting_level", "mongodb_settings.0.extract_doc_id",
 			"mongodb_settings.0.docs_to_investigate", "mongodb_settings.0.auth_source") {
-			request.MongoDbSettings = &dms.MongoDbSettings{
-				Username:     aws.String(d.Get("username").(string)),
-				Password:     aws.String(d.Get("password").(string)),
-				ServerName:   aws.String(d.Get("server_name").(string)),
-				Port:         aws.Int64(int64(d.Get("port").(int))),
-				DatabaseName: aws.String(d.Get("database_name").(string)),
-				KmsKeyId:     aws.String(d.Get("kms_key_arn").(string)),
+			if _, ok := d.GetOk("secrets_manager_arn"); ok {
+				request.MongoDbSettings = &dms.MongoDbSettings{
+					DatabaseName:                aws.String(d.Get("database_name").(string)),
+					SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+					SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+					KmsKeyId:                    aws.String(d.Get("kms_key_arn").(string)),
 
-				AuthType:          aws.String(d.Get("mongodb_settings.0.auth_type").(string)),
-				AuthMechanism:     aws.String(d.Get("mongodb_settings.0.auth_mechanism").(string)),
-				NestingLevel:      aws.String(d.Get("mongodb_settings.0.nesting_level").(string)),
-				ExtractDocId:      aws.String(d.Get("mongodb_settings.0.extract_doc_id").(string)),
-				DocsToInvestigate: aws.String(d.Get("mongodb_settings.0.docs_to_investigate").(string)),
-				AuthSource:        aws.String(d.Get("mongodb_settings.0.auth_source").(string)),
+					AuthType:          aws.String(d.Get("mongodb_settings.0.auth_type").(string)),
+					AuthMechanism:     aws.String(d.Get("mongodb_settings.0.auth_mechanism").(string)),
+					NestingLevel:      aws.String(d.Get("mongodb_settings.0.nesting_level").(string)),
+					ExtractDocId:      aws.String(d.Get("mongodb_settings.0.extract_doc_id").(string)),
+					DocsToInvestigate: aws.String(d.Get("mongodb_settings.0.docs_to_investigate").(string)),
+					AuthSource:        aws.String(d.Get("mongodb_settings.0.auth_source").(string)),
+				}
+			} else {
+				request.MongoDbSettings = &dms.MongoDbSettings{
+					Username:     aws.String(d.Get("username").(string)),
+					Password:     aws.String(d.Get("password").(string)),
+					ServerName:   aws.String(d.Get("server_name").(string)),
+					Port:         aws.Int64(int64(d.Get("port").(int))),
+					DatabaseName: aws.String(d.Get("database_name").(string)),
+					KmsKeyId:     aws.String(d.Get("kms_key_arn").(string)),
+
+					AuthType:          aws.String(d.Get("mongodb_settings.0.auth_type").(string)),
+					AuthMechanism:     aws.String(d.Get("mongodb_settings.0.auth_mechanism").(string)),
+					NestingLevel:      aws.String(d.Get("mongodb_settings.0.nesting_level").(string)),
+					ExtractDocId:      aws.String(d.Get("mongodb_settings.0.extract_doc_id").(string)),
+					DocsToInvestigate: aws.String(d.Get("mongodb_settings.0.docs_to_investigate").(string)),
+					AuthSource:        aws.String(d.Get("mongodb_settings.0.auth_source").(string)),
+				}
 			}
 			request.EngineName = aws.String(d.Get("engine_name").(string)) // Must be included (should be 'mongodb')
 
@@ -685,6 +880,35 @@ func resourceAwsDmsEndpointUpdate(d *schema.ResourceData, meta interface{}) erro
 			request.Port = aws.Int64(int64(d.Get("port").(int)))
 			request.DatabaseName = aws.String(d.Get("database_name").(string))
 
+			hasChanges = true
+		}
+	case "docdb":
+		if d.HasChanges(
+			"username", "password", "server_name", "port", "database_name", "secrets_manager_access_role_arn",
+			"secrets_manager_arn") {
+			if _, ok := d.GetOk("secrets_manager_arn"); ok {
+				request.DocDbSettings = &dms.DocDbSettings{
+					DatabaseName:                aws.String(d.Get("database_name").(string)),
+					SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+					SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				}
+			} else {
+				request.DocDbSettings = &dms.DocDbSettings{
+					Username:     aws.String(d.Get("username").(string)),
+					Password:     aws.String(d.Get("password").(string)),
+					ServerName:   aws.String(d.Get("server_name").(string)),
+					Port:         aws.Int64(int64(d.Get("port").(int))),
+					DatabaseName: aws.String(d.Get("database_name").(string)),
+				}
+			}
+			request.EngineName = aws.String(d.Get("engine_name").(string)) // Must be included (should be 'docdb')
+
+			// Update connection info in top-level namespace as well
+			request.Username = aws.String(d.Get("username").(string))
+			request.Password = aws.String(d.Get("password").(string))
+			request.ServerName = aws.String(d.Get("server_name").(string))
+			request.Port = aws.Int64(int64(d.Get("port").(int)))
+			request.DatabaseName = aws.String(d.Get("database_name").(string))
 			hasChanges = true
 		}
 	case "oracle":
@@ -717,6 +941,8 @@ func resourceAwsDmsEndpointUpdate(d *schema.ResourceData, meta interface{}) erro
 			hasChanges = true
 		}
 	case "postgres":
+		fallthrough
+	case "aurora-postgresql":
 		if d.HasChanges(
 			"username", "password", "server_name", "port", "database_name", "secrets_manager_access_role_arn",
 			"secrets_manager_arn") {
@@ -735,6 +961,128 @@ func resourceAwsDmsEndpointUpdate(d *schema.ResourceData, meta interface{}) erro
 					DatabaseName: aws.String(d.Get("database_name").(string)),
 				}
 				request.EngineName = aws.String(d.Get("engine_name").(string)) // Must be included (should be 'postgres')
+
+				// Update connection info in top-level namespace as well
+				request.Username = aws.String(d.Get("username").(string))
+				request.Password = aws.String(d.Get("password").(string))
+				request.ServerName = aws.String(d.Get("server_name").(string))
+				request.Port = aws.Int64(int64(d.Get("port").(int)))
+				request.DatabaseName = aws.String(d.Get("database_name").(string))
+			}
+			hasChanges = true
+		}
+	case "redshift":
+		if d.HasChanges(
+			"username", "password", "server_name", "port", "database_name", "secrets_manager_access_role_arn",
+			"secrets_manager_arn") {
+			if _, ok := d.GetOk("secrets_manager_arn"); ok {
+				request.RedshiftSettings = &dms.RedshiftSettings{
+					DatabaseName:                aws.String(d.Get("database_name").(string)),
+					SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+					SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				}
+			} else {
+				request.RedshiftSettings = &dms.RedshiftSettings{
+					Username:     aws.String(d.Get("username").(string)),
+					Password:     aws.String(d.Get("password").(string)),
+					ServerName:   aws.String(d.Get("server_name").(string)),
+					Port:         aws.Int64(int64(d.Get("port").(int))),
+					DatabaseName: aws.String(d.Get("database_name").(string)),
+				}
+				request.EngineName = aws.String(d.Get("engine_name").(string)) // Must be included (should be 'redshift')
+
+				// Update connection info in top-level namespace as well
+				request.Username = aws.String(d.Get("username").(string))
+				request.Password = aws.String(d.Get("password").(string))
+				request.ServerName = aws.String(d.Get("server_name").(string))
+				request.Port = aws.Int64(int64(d.Get("port").(int)))
+				request.DatabaseName = aws.String(d.Get("database_name").(string))
+			}
+			hasChanges = true
+		}
+	case "mysql":
+		fallthrough
+	case "mariadb":
+		fallthrough
+	case "aurora":
+		if d.HasChanges(
+			"username", "password", "server_name", "port", "database_name", "secrets_manager_access_role_arn",
+			"secrets_manager_arn") {
+			if _, ok := d.GetOk("secrets_manager_arn"); ok {
+				request.MySQLSettings = &dms.MySQLSettings{
+					DatabaseName:                aws.String(d.Get("database_name").(string)),
+					SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+					SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				}
+			} else {
+				request.MySQLSettings = &dms.MySQLSettings{
+					Username:     aws.String(d.Get("username").(string)),
+					Password:     aws.String(d.Get("password").(string)),
+					ServerName:   aws.String(d.Get("server_name").(string)),
+					Port:         aws.Int64(int64(d.Get("port").(int))),
+					DatabaseName: aws.String(d.Get("database_name").(string)),
+				}
+				request.EngineName = aws.String(d.Get("engine_name").(string)) // Must be included (should be 'mysql')
+
+				// Update connection info in top-level namespace as well
+				request.Username = aws.String(d.Get("username").(string))
+				request.Password = aws.String(d.Get("password").(string))
+				request.ServerName = aws.String(d.Get("server_name").(string))
+				request.Port = aws.Int64(int64(d.Get("port").(int)))
+				request.DatabaseName = aws.String(d.Get("database_name").(string))
+			}
+			hasChanges = true
+		}
+	case "sqlserver":
+		fallthrough
+	case "azuredb":
+		if d.HasChanges(
+			"username", "password", "server_name", "port", "database_name", "secrets_manager_access_role_arn",
+			"secrets_manager_arn") {
+			if _, ok := d.GetOk("secrets_manager_arn"); ok {
+				request.MicrosoftSQLServerSettings = &dms.MicrosoftSQLServerSettings{
+					DatabaseName:                aws.String(d.Get("database_name").(string)),
+					SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+					SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				}
+			} else {
+				request.MicrosoftSQLServerSettings = &dms.MicrosoftSQLServerSettings{
+					Username:     aws.String(d.Get("username").(string)),
+					Password:     aws.String(d.Get("password").(string)),
+					ServerName:   aws.String(d.Get("server_name").(string)),
+					Port:         aws.Int64(int64(d.Get("port").(int))),
+					DatabaseName: aws.String(d.Get("database_name").(string)),
+				}
+				request.EngineName = aws.String(d.Get("engine_name").(string)) // Must be included (should be 'sqlserver')
+
+				// Update connection info in top-level namespace as well
+				request.Username = aws.String(d.Get("username").(string))
+				request.Password = aws.String(d.Get("password").(string))
+				request.ServerName = aws.String(d.Get("server_name").(string))
+				request.Port = aws.Int64(int64(d.Get("port").(int)))
+				request.DatabaseName = aws.String(d.Get("database_name").(string))
+			}
+			hasChanges = true
+		}
+	case "sybase":
+		if d.HasChanges(
+			"username", "password", "server_name", "port", "database_name", "secrets_manager_access_role_arn",
+			"secrets_manager_arn") {
+			if _, ok := d.GetOk("secrets_manager_arn"); ok {
+				request.SybaseSettings = &dms.SybaseSettings{
+					DatabaseName:                aws.String(d.Get("database_name").(string)),
+					SecretsManagerAccessRoleArn: aws.String(d.Get("secrets_manager_access_role_arn").(string)),
+					SecretsManagerSecretId:      aws.String(d.Get("secrets_manager_arn").(string)),
+				}
+			} else {
+				request.SybaseSettings = &dms.SybaseSettings{
+					Username:     aws.String(d.Get("username").(string)),
+					Password:     aws.String(d.Get("password").(string)),
+					ServerName:   aws.String(d.Get("server_name").(string)),
+					Port:         aws.Int64(int64(d.Get("port").(int))),
+					DatabaseName: aws.String(d.Get("database_name").(string)),
+				}
+				request.EngineName = aws.String(d.Get("engine_name").(string)) // Must be included (should be 'sybase')
 
 				// Update connection info in top-level namespace as well
 				request.Username = aws.String(d.Get("username").(string))
@@ -852,6 +1200,8 @@ func resourceAwsDmsEndpointSetState(d *schema.ResourceData, endpoint *dms.Endpoi
 			d.Set("server_name", endpoint.MongoDbSettings.ServerName)
 			d.Set("port", endpoint.MongoDbSettings.Port)
 			d.Set("database_name", endpoint.MongoDbSettings.DatabaseName)
+			d.Set("secrets_manager_access_role_arn", endpoint.MongoDbSettings.SecretsManagerAccessRoleArn)
+			d.Set("secrets_manager_arn", endpoint.MongoDbSettings.SecretsManagerSecretId)
 		} else {
 			d.Set("username", endpoint.Username)
 			d.Set("server_name", endpoint.ServerName)
@@ -860,6 +1210,23 @@ func resourceAwsDmsEndpointSetState(d *schema.ResourceData, endpoint *dms.Endpoi
 		}
 		if err := d.Set("mongodb_settings", flattenDmsMongoDbSettings(endpoint.MongoDbSettings)); err != nil {
 			return fmt.Errorf("Error setting mongodb_settings for DMS: %s", err)
+		}
+	case "docdb":
+		if endpoint.DocDbSettings != nil {
+			d.Set("username", endpoint.DocDbSettings.Username)
+			d.Set("server_name", endpoint.DocDbSettings.ServerName)
+			d.Set("port", endpoint.DocDbSettings.Port)
+			d.Set("database_name", endpoint.DocDbSettings.DatabaseName)
+			d.Set("secrets_manager_access_role_arn", endpoint.DocDbSettings.SecretsManagerAccessRoleArn)
+			d.Set("secrets_manager_arn", endpoint.DocDbSettings.SecretsManagerSecretId)
+		} else {
+			d.Set("username", endpoint.Username)
+			d.Set("server_name", endpoint.ServerName)
+			d.Set("port", endpoint.Port)
+			d.Set("database_name", endpoint.DatabaseName)
+		}
+		if err := d.Set("docdb_settings", flattenDmsDocDbSettings(endpoint.DocDbSettings)); err != nil {
+			return fmt.Errorf("Error setting docdb_settings for DMS: %s", err)
 		}
 	case "oracle":
 		if endpoint.OracleSettings != nil {
@@ -876,6 +1243,8 @@ func resourceAwsDmsEndpointSetState(d *schema.ResourceData, endpoint *dms.Endpoi
 			d.Set("database_name", endpoint.DatabaseName)
 		}
 	case "postgres":
+		fallthrough
+	case "aurora-postgresql":
 		if endpoint.PostgreSQLSettings != nil {
 			d.Set("username", endpoint.PostgreSQLSettings.Username)
 			d.Set("server_name", endpoint.PostgreSQLSettings.ServerName)
@@ -883,6 +1252,68 @@ func resourceAwsDmsEndpointSetState(d *schema.ResourceData, endpoint *dms.Endpoi
 			d.Set("database_name", endpoint.PostgreSQLSettings.DatabaseName)
 			d.Set("secrets_manager_access_role_arn", endpoint.PostgreSQLSettings.SecretsManagerAccessRoleArn)
 			d.Set("secrets_manager_arn", endpoint.PostgreSQLSettings.SecretsManagerSecretId)
+		} else {
+			d.Set("username", endpoint.Username)
+			d.Set("server_name", endpoint.ServerName)
+			d.Set("port", endpoint.Port)
+			d.Set("database_name", endpoint.DatabaseName)
+		}
+	case "mysql":
+		fallthrough
+	case "mariadb":
+		fallthrough
+	case "aurora":
+		if endpoint.MySQLSettings != nil {
+			d.Set("username", endpoint.MySQLSettings.Username)
+			d.Set("server_name", endpoint.MySQLSettings.ServerName)
+			d.Set("port", endpoint.MySQLSettings.Port)
+			d.Set("database_name", endpoint.MySQLSettings.DatabaseName)
+			d.Set("secrets_manager_access_role_arn", endpoint.MySQLSettings.SecretsManagerAccessRoleArn)
+			d.Set("secrets_manager_arn", endpoint.MySQLSettings.SecretsManagerSecretId)
+		} else {
+			d.Set("username", endpoint.Username)
+			d.Set("server_name", endpoint.ServerName)
+			d.Set("port", endpoint.Port)
+			d.Set("database_name", endpoint.DatabaseName)
+		}
+	case "redshift":
+		if endpoint.RedshiftSettings != nil {
+			d.Set("username", endpoint.RedshiftSettings.Username)
+			d.Set("server_name", endpoint.RedshiftSettings.ServerName)
+			d.Set("port", endpoint.RedshiftSettings.Port)
+			d.Set("database_name", endpoint.RedshiftSettings.DatabaseName)
+			d.Set("secrets_manager_access_role_arn", endpoint.RedshiftSettings.SecretsManagerAccessRoleArn)
+			d.Set("secrets_manager_arn", endpoint.RedshiftSettings.SecretsManagerSecretId)
+		} else {
+			d.Set("username", endpoint.Username)
+			d.Set("server_name", endpoint.ServerName)
+			d.Set("port", endpoint.Port)
+			d.Set("database_name", endpoint.DatabaseName)
+		}
+	case "sqlserver":
+		fallthrough
+	case "azuredb":
+		if endpoint.MicrosoftSQLServerSettings != nil {
+			d.Set("username", endpoint.MicrosoftSQLServerSettings.Username)
+			d.Set("server_name", endpoint.MicrosoftSQLServerSettings.ServerName)
+			d.Set("port", endpoint.MicrosoftSQLServerSettings.Port)
+			d.Set("database_name", endpoint.MicrosoftSQLServerSettings.DatabaseName)
+			d.Set("secrets_manager_access_role_arn", endpoint.MicrosoftSQLServerSettings.SecretsManagerAccessRoleArn)
+			d.Set("secrets_manager_arn", endpoint.MicrosoftSQLServerSettings.SecretsManagerSecretId)
+		} else {
+			d.Set("username", endpoint.Username)
+			d.Set("server_name", endpoint.ServerName)
+			d.Set("port", endpoint.Port)
+			d.Set("database_name", endpoint.DatabaseName)
+		}
+	case "sybase":
+		if endpoint.SybaseSettings != nil {
+			d.Set("username", endpoint.SybaseSettings.Username)
+			d.Set("server_name", endpoint.SybaseSettings.ServerName)
+			d.Set("port", endpoint.SybaseSettings.Port)
+			d.Set("database_name", endpoint.SybaseSettings.DatabaseName)
+			d.Set("secrets_manager_access_role_arn", endpoint.SybaseSettings.SecretsManagerAccessRoleArn)
+			d.Set("secrets_manager_arn", endpoint.SybaseSettings.SecretsManagerSecretId)
 		} else {
 			d.Set("username", endpoint.Username)
 			d.Set("server_name", endpoint.ServerName)
@@ -961,6 +1392,20 @@ func flattenDmsMongoDbSettings(settings *dms.MongoDbSettings) []map[string]inter
 		"extract_doc_id":      aws.StringValue(settings.ExtractDocId),
 		"docs_to_investigate": aws.StringValue(settings.DocsToInvestigate),
 		"auth_source":         aws.StringValue(settings.AuthSource),
+	}
+
+	return []map[string]interface{}{m}
+}
+
+func flattenDmsDocDbSettings(settings *dms.DocDbSettings) []map[string]interface{} {
+	if settings == nil {
+		return []map[string]interface{}{}
+	}
+
+	m := map[string]interface{}{
+		"nesting_level":       aws.StringValue(settings.NestingLevel),
+		"extract_doc_id":      aws.BoolValue(settings.ExtractDocId),
+		"docs_to_investigate": aws.Int64Value(settings.DocsToInvestigate),
 	}
 
 	return []map[string]interface{}{m}
