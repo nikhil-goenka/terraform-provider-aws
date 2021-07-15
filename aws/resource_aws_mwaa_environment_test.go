@@ -385,7 +385,6 @@ func TestAccAWSMwaaEnvironment_Schedulers(t *testing.T) {
 
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "aws_mwaa_environment.test"
-	s3BucketObjectResourceName := "aws_s3_bucket_object.plugins"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -394,23 +393,16 @@ func TestAccAWSMwaaEnvironment_Schedulers(t *testing.T) {
 		CheckDestroy: testAccCheckAWSMwaaEnvironmentDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccAWSMwaaEnvironmentBasicConfig(rName, "test"),
+				Config: testAccAWSMwaaEnvironmentScheduler(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckAWSMwaaEnvironmentExists(resourceName, &environment),
-					resource.TestCheckResourceAttr(resourceName, "schedulers", "2"),
+					resource.TestCheckResourceAttr(resourceName, "schedulers", "1"),
 				),
 			},
 			{
 				ResourceName:      resourceName,
 				ImportState:       true,
 				ImportStateVerify: true,
-			},
-			{
-				Config: testAccAWSMwaaEnvironmentScheduler(rName, "test"),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckAWSMwaaEnvironmentExists(resourceName, &environment),
-					resource.TestCheckResourceAttr(resourceName, "schedulers", "4"),
-				),
 			},
 		},
 	})
@@ -878,7 +870,7 @@ resource "aws_mwaa_environment" "test" {
   dag_s3_path        = aws_s3_bucket_object.dags.key
   execution_role_arn = aws_iam_role.test.arn
   name               = %[1]q
-  schedulers         = 4
+  schedulers         = 1
 
   network_configuration {
     security_group_ids = [aws_security_group.test.id]
