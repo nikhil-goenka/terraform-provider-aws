@@ -380,6 +380,42 @@ func TestAccAWSMwaaEnvironment_PluginsS3ObjectVersion(t *testing.T) {
 	})
 }
 
+func TestAccAWSMwaaEnvironment_Schedulers(t *testing.T) {
+	var environment mwaa.GetEnvironmentOutput
+
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "aws_mwaa_environment.test"
+	s3BucketObjectResourceName := "aws_s3_bucket_object.plugins"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		ErrorCheck:   testAccErrorCheck(t, mwaa.EndpointsID),
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckAWSMwaaEnvironmentDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccAWSMwaaEnvironmentBasicConfig(rName, "test"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSMwaaEnvironmentExists(resourceName, &environment),
+					resource.TestCheckResourceAttr(resourceName, "schedulers", "2"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+			{
+				Config: testAccAWSMwaaEnvironmentScheduler(rName, "test"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAWSMwaaEnvironmentExists(resourceName, &environment),
+					resource.TestCheckResourceAttr(resourceName, "schedulers", "4"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckAWSMwaaEnvironmentExists(resourceName string, environment *mwaa.GetEnvironmentOutput) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resourceName]
@@ -834,4 +870,21 @@ resource "aws_s3_bucket_object" "plugins" {
   content = %q
 }
 `, rName, content)
+}
+
+func testAccAWSMwaaEnvironmentScheduler(rName string) string {
+	return testAccAWSMwaaEnvironmentBase(rName) + fmt.Sprintf(`
+resource "aws_mwaa_environment" "test" {
+  dag_s3_path        = aws_s3_bucket_object.dags.key
+  execution_role_arn = aws_iam_role.test.arn
+  name               = %[1]q
+
+  network_configuration {
+    security_group_ids = [aws_security_group.test.id]
+    subnet_ids         = aws_subnet.private[*].id
+  }
+
+  source_bucket_arn = aws_s3_bucket.test.arn
+}
+`, rName)
 }
