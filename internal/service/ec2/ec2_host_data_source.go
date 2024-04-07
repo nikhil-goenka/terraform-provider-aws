@@ -79,6 +79,10 @@ func DataSourceHost() *schema.Resource {
 				Type:     schema.TypeInt,
 				Computed: true,
 			},
+			"state": {
+				Type:     schema.TypeInt,
+				Computed: true,
+			},
 			"tags": tftags.TagsSchemaComputed(),
 			"total_vcpus": {
 				Type:     schema.TypeInt,
@@ -133,6 +137,7 @@ func dataSourceHostRead(ctx context.Context, d *schema.ResourceData, meta interf
 	d.Set("outpost_arn", host.OutpostArn)
 	d.Set("owner_id", host.OwnerId)
 	d.Set("sockets", host.HostProperties.Sockets)
+	d.Set("state", host.State)
 	d.Set("total_vcpus", host.HostProperties.TotalVCpus)
 
 	if err := d.Set("tags", KeyValueTags(ctx, host.Tags).IgnoreAWS().IgnoreConfig(ignoreTagsConfig).Map()); err != nil {
