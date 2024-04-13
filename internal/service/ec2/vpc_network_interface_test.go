@@ -352,7 +352,8 @@ func TestAccVPCNetworkInterface_attachment(t *testing.T) {
 					testAccCheckENIExists(ctx, resourceName, &conf),
 					resource.TestCheckResourceAttr(resourceName, "attachment.#", "1"),
 					resource.TestCheckTypeSetElemNestedAttrs(resourceName, "attachment.*", map[string]string{
-						"device_index": "1",
+						"device_index":       "1",
+						"network_card_index": "0",
 					}),
 					resource.TestCheckResourceAttr(resourceName, "private_ip", "172.16.10.100"),
 					resource.TestCheckResourceAttr(resourceName, "private_ips.#", "1"),

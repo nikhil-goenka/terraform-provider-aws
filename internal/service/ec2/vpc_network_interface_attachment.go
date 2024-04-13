@@ -44,6 +44,11 @@ func ResourceNetworkInterfaceAttachment() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
+			"network_card_index": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				Default:  0,
+			},
 			"status": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -60,6 +65,7 @@ func resourceNetworkInterfaceAttachmentCreate(ctx context.Context, d *schema.Res
 		d.Get("network_interface_id").(string),
 		d.Get("instance_id").(string),
 		d.Get("device_index").(int),
+		d.Get("network_card_index").(int),
 		networkInterfaceAttachedTimeout,
 	)
 
@@ -93,6 +99,7 @@ func resourceNetworkInterfaceAttachmentRead(ctx context.Context, d *schema.Resou
 	d.Set("network_interface_id", network_interface.NetworkInterfaceId)
 	d.Set("attachment_id", network_interface.Attachment.AttachmentId)
 	d.Set("device_index", network_interface.Attachment.DeviceIndex)
+	d.Set("network_card_index", network_interface.Attachment.NetworkCardIndex)
 	d.Set("instance_id", network_interface.Attachment.InstanceId)
 	d.Set("status", network_interface.Attachment.Status)
 
