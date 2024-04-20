@@ -12,7 +12,7 @@ require (
 	github.com/pavius/impi v0.0.3
 	github.com/rhysd/actionlint v1.6.27
 	github.com/terraform-linters/tflint v0.50.3
-	github.com/uber-go/gopatch v0.3.0
+	github.com/uber-go/gopatch v0.4.0
 	mvdan.cc/gofumpt v0.6.0
 )
 
