@@ -634,6 +634,77 @@ func TestAccSSMParameter_Overwrite_removeAttribute(t *testing.T) {
 	})
 }
 
+func TestAccSSMParameter_policy(t *testing.T) {
+	ctx := acctest.Context(t)
+	var param ssm.Parameter
+	name := fmt.Sprintf("%s_%s", t.Name(), sdkacctest.RandString(10))
+	resourceName := "aws_ssm_parameter.test"
+	policy := `[{"Attributes":{"After":"15","Unit":"Days"},"Type":"NoChangeNotification","Version":"1.0"}]`
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:                 func() { acctest.PreCheck(ctx, t) },
+		ErrorCheck:               acctest.ErrorCheck(t, names.SSMServiceID),
+		ProtoV5ProviderFactories: acctest.ProtoV5ProviderFactories,
+		CheckDestroy:             testAccCheckParameterDestroy(ctx),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccParameterConfig_policy(name, policy),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckParameterExists(ctx, resourceName, &param),
+					acctest.CheckResourceAttrRegionalARN(resourceName, names.AttrARN, "ssm", fmt.Sprintf("parameter/%s", name)),
+					resource.TestCheckResourceAttr(resourceName, names.AttrPolicy, policy),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"overwrite"},
+			},
+		},
+	})
+}
+
+func TestAccSSMParameter_update_policy(t *testing.T) {
+	ctx := acctest.Context(t)
+	var param ssm.Parameter
+	name := fmt.Sprintf("%s_%s", t.Name(), sdkacctest.RandString(10))
+	resourceName := "aws_ssm_parameter.test"
+	policy1 := `{"Type": "NoChangeNotification","Version": "1.0","Attributes": {"Before": "15","Unit": "Days"}}`
+	policy2 := `{"Type": "NoChangeNotification","Version": "1.0","Attributes": {"Before": "25","Unit": "Days"}}`
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:                 func() { acctest.PreCheck(ctx, t) },
+		ErrorCheck:               acctest.ErrorCheck(t, names.SSMServiceID),
+		ProtoV5ProviderFactories: acctest.ProtoV5ProviderFactories,
+		CheckDestroy:             testAccCheckParameterDestroy(ctx),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccParameterConfig_policy(name, policy1),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckParameterExists(ctx, resourceName, &param),
+					acctest.CheckResourceAttrRegionalARN(resourceName, names.AttrARN, "ssm", fmt.Sprintf("parameter/%s", name)),
+					resource.TestCheckResourceAttr(resourceName, names.AttrPolicy, policy1),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"overwrite"},
+			},
+			{
+				Config: testAccParameterConfig_policy(name, policy2),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckParameterExists(ctx, resourceName, &param),
+					acctest.CheckResourceAttrRegionalARN(resourceName, names.AttrARN, "ssm", fmt.Sprintf("parameter/%s", name)),
+					resource.TestCheckResourceAttr(resourceName, names.AttrPolicy, policy2),
+				),
+			},
+		},
+	})
+}
+
 func TestAccSSMParameter_tags(t *testing.T) {
 	ctx := acctest.Context(t)
 	var param ssm.Parameter
@@ -1452,6 +1523,18 @@ resource "aws_ssm_parameter" "test" {
   }
 }
 `, rName, overwrite, tagKey1, tagValue1)
+}
+
+func testAccParameterConfig_policy(rName, policy string) string {
+	return fmt.Sprintf(`
+resource "aws_ssm_parameter" "test" {
+  name  = %[1]q
+  tier  = "Advanced"
+  type  = "String"
+  value = "policy"
+  policy = %[2]q
+}
+`, rName, policy)
 }
 
 func testAccParameterConfig_cascadeOverwrite(rName, value string) string {

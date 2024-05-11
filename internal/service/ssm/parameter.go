@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/customdiff"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/hashicorp/terraform-provider-aws/internal/conns"
 	"github.com/hashicorp/terraform-provider-aws/internal/errs/sdkdiag"
@@ -92,6 +93,17 @@ func ResourceParameter() *schema.Resource {
 				Optional:   true,
 				Deprecated: "this attribute has been deprecated",
 			},
+			names.AttrPolicy: {
+				Type:                  schema.TypeString,
+				Optional:              true,
+				DiffSuppressFunc:      verify.SuppressEquivalentPolicyDiffs,
+				DiffSuppressOnRefresh: true,
+				ValidateFunc:          validation.StringIsJSON,
+				StateFunc: func(v interface{}) string {
+					json, _ := structure.NormalizeJsonString(v)
+					return json
+				},
+			},
 			names.AttrTags:    tftags.TagsSchema(),
 			names.AttrTagsAll: tftags.TagsSchemaComputed(),
 			"tier": {
@@ -150,7 +162,6 @@ func resourceParameterCreate(ctx context.Context, d *schema.ResourceData, meta i
 	conn := meta.(*conns.AWSClient).SSMConn(ctx)
 
 	name := d.Get(names.AttrName).(string)
-
 	value := d.Get(names.AttrValue).(string)
 	if v, ok := d.Get("insecure_value").(string); ok && v != "" {
 		value = v
@@ -174,6 +185,14 @@ func resourceParameterCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	if v, ok := d.GetOk(names.AttrDescription); ok {
 		input.Description = aws.String(v.(string))
+	}
+
+	if v, ok := d.GetOk(names.AttrPolicy); ok {
+		policy, err := structure.NormalizeJsonString(v.(string))
+		if err != nil {
+			return diag.Errorf("policy (%s) is invalid JSON: %s", d.Get(names.AttrPolicy).(string), err)
+		}
+		input.Policies = aws.String(policy)
 	}
 
 	if keyID, ok := d.GetOk("key_id"); ok && d.Get(names.AttrType).(string) == ssm.ParameterTypeSecureString {
@@ -297,6 +316,13 @@ func resourceParameterRead(ctx context.Context, d *schema.ResourceData, meta int
 	d.Set("allowed_pattern", detail.AllowedPattern)
 	d.Set("data_type", detail.DataType)
 
+	policyToSet, err := verify.PolicyToSet(d.Get(names.AttrPolicy).(string), aws.StringValue(detail.Policies[0].PolicyText))
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	d.Set(names.AttrPolicy, policyToSet)
+
 	return diags
 }
 
@@ -310,6 +336,7 @@ func resourceParameterUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		if v, ok := d.Get("insecure_value").(string); ok && v != "" {
 			value = v
 		}
+
 		paramInput := &ssm.PutParameterInput{
 			Name:           aws.String(d.Get(names.AttrName).(string)),
 			Type:           aws.String(d.Get(names.AttrType).(string)),
@@ -327,6 +354,14 @@ func resourceParameterUpdate(ctx context.Context, d *schema.ResourceData, meta i
 
 		if d.HasChange("data_type") {
 			paramInput.DataType = aws.String(d.Get("data_type").(string))
+		}
+
+		if d.HasChange(names.AttrPolicy) {
+			policy, err := structure.NormalizeJsonString(d.Get(names.AttrPolicy).(string))
+			if err != nil {
+				return diag.Errorf("policy (%s) is invalid JSON: %s", d.Get(names.AttrPolicy).(string), err)
+			}
+			paramInput.Policies = aws.String(policy)
 		}
 
 		if d.HasChange(names.AttrDescription) {
