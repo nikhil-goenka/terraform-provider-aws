@@ -670,8 +670,8 @@ func TestAccSSMParameter_update_policy(t *testing.T) {
 	var param ssm.Parameter
 	name := fmt.Sprintf("%s_%s", t.Name(), sdkacctest.RandString(10))
 	resourceName := "aws_ssm_parameter.test"
-	policy1 := `{"Type": "NoChangeNotification","Version": "1.0","Attributes": {"Before": "15","Unit": "Days"}}`
-	policy2 := `{"Type": "NoChangeNotification","Version": "1.0","Attributes": {"Before": "25","Unit": "Days"}}`
+	policy1 := `[{"Attributes":{"After":"15","Unit":"Days"},"Type":"NoChangeNotification","Version":"1.0"}]`
+	policy2 := `[{"Attributes":{"After":"25","Unit":"Days"},"Type":"NoChangeNotification","Version":"1.0"}]`
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:                 func() { acctest.PreCheck(ctx, t) },
