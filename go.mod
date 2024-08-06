@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.27
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.27
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.11
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.9
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.10
 	github.com/aws/aws-sdk-go-v2/service/accessanalyzer v1.32.3
 	github.com/aws/aws-sdk-go-v2/service/account v1.19.3
 	github.com/aws/aws-sdk-go-v2/service/acm v1.28.4
@@ -38,7 +38,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/backup v1.36.3
 	github.com/aws/aws-sdk-go-v2/service/batch v1.43.0
 	github.com/aws/aws-sdk-go-v2/service/bcmdataexports v1.5.3
-	github.com/aws/aws-sdk-go-v2/service/bedrock v1.12.0
+	github.com/aws/aws-sdk-go-v2/service/bedrock v1.13.0
 	github.com/aws/aws-sdk-go-v2/service/bedrockagent v1.16.0
 	github.com/aws/aws-sdk-go-v2/service/budgets v1.25.3
 	github.com/aws/aws-sdk-go-v2/service/chatbot v1.4.3
@@ -72,7 +72,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/computeoptimizer v1.37.3
 	github.com/aws/aws-sdk-go-v2/service/configservice v1.48.3
 	github.com/aws/aws-sdk-go-v2/service/connectcases v1.19.3
-	github.com/aws/aws-sdk-go-v2/service/controltower v1.16.3
+	github.com/aws/aws-sdk-go-v2/service/controltower v1.16.4
 	github.com/aws/aws-sdk-go-v2/service/costandusagereportservice v1.26.3
 	github.com/aws/aws-sdk-go-v2/service/costexplorer v1.40.3
 	github.com/aws/aws-sdk-go-v2/service/costoptimizationhub v1.7.3
@@ -82,7 +82,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dataexchange v1.30.3
 	github.com/aws/aws-sdk-go-v2/service/datapipeline v1.23.3
 	github.com/aws/aws-sdk-go-v2/service/datasync v1.40.3
-	github.com/aws/aws-sdk-go-v2/service/datazone v1.16.0
+	github.com/aws/aws-sdk-go-v2/service/datazone v1.17.0
 	github.com/aws/aws-sdk-go-v2/service/dax v1.21.4
 	github.com/aws/aws-sdk-go-v2/service/detective v1.29.3
 	github.com/aws/aws-sdk-go-v2/service/devicefarm v1.25.2
@@ -94,7 +94,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/drs v1.28.3
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.34.4
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.173.0
-	github.com/aws/aws-sdk-go-v2/service/ecr v1.31.0
+	github.com/aws/aws-sdk-go-v2/service/ecr v1.32.0
 	github.com/aws/aws-sdk-go-v2/service/ecrpublic v1.25.3
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.44.3
 	github.com/aws/aws-sdk-go-v2/service/efs v1.31.3
@@ -158,7 +158,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/neptunegraph v1.10.3
 	github.com/aws/aws-sdk-go-v2/service/networkfirewall v1.41.0
 	github.com/aws/aws-sdk-go-v2/service/networkmonitor v1.5.3
-	github.com/aws/aws-sdk-go-v2/service/oam v1.13.3
+	github.com/aws/aws-sdk-go-v2/service/oam v1.13.4
 	github.com/aws/aws-sdk-go-v2/service/opensearchserverless v1.13.3
 	github.com/aws/aws-sdk-go-v2/service/organizations v1.30.2
 	github.com/aws/aws-sdk-go-v2/service/osis v1.12.3
@@ -171,12 +171,12 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/qldb v1.23.3
 	github.com/aws/aws-sdk-go-v2/service/ram v1.27.3
 	github.com/aws/aws-sdk-go-v2/service/rbin v1.18.3
-	github.com/aws/aws-sdk-go-v2/service/rds v1.81.5
+	github.com/aws/aws-sdk-go-v2/service/rds v1.82.0
 	github.com/aws/aws-sdk-go-v2/service/redshift v1.46.4
 	github.com/aws/aws-sdk-go-v2/service/redshiftdata v1.27.3
 	github.com/aws/aws-sdk-go-v2/service/redshiftserverless v1.21.0
 	github.com/aws/aws-sdk-go-v2/service/rekognition v1.43.2
-	github.com/aws/aws-sdk-go-v2/service/resiliencehub v1.23.3
+	github.com/aws/aws-sdk-go-v2/service/resiliencehub v1.24.0
 	github.com/aws/aws-sdk-go-v2/service/resourceexplorer2 v1.12.3
 	github.com/aws/aws-sdk-go-v2/service/resourcegroups v1.24.3
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.23.3
@@ -185,7 +185,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/route53domains v1.25.3
 	github.com/aws/aws-sdk-go-v2/service/route53profiles v1.2.3
 	github.com/aws/aws-sdk-go-v2/service/rum v1.19.3
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.58.2
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.58.3
 	github.com/aws/aws-sdk-go-v2/service/s3control v1.46.3
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.10.3
 	github.com/aws/aws-sdk-go-v2/service/schemas v1.26.3
